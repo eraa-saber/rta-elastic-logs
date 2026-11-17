@@ -1,0 +1,68 @@
+<?php
+
+namespace App\Services\Elasticsearch;
+
+use Rta\ElasticLogs\MonthlyLogSearchService;
+
+/**
+ * Example log store. Rename the class, point indexConfigKey() at a prefix in
+ * config/elasticsearch.php, then register it under log_types.
+ */
+class ExampleLogsSearchService extends MonthlyLogSearchService
+{
+    protected function indexConfigKey(): string
+    {
+        return 'example_logs_index';
+    }
+
+    public function mapping(): array
+    {
+        return [
+            'properties' => [
+                'log_id' => ['type' => 'integer'],
+                'source' => ['type' => 'keyword'],
+                'name' => ['type' => 'keyword'],
+                'status' => ['type' => 'keyword'],
+                'request' => ['type' => 'text'],
+                'response' => ['type' => 'text'],
+                'created_at' => ['type' => 'date'],
+            ],
+        ];
+    }
+
+    protected function searchableFields(): array
+    {
+        return ['name', 'status', 'request', 'response'];
+    }
+
+    /** Used by index()/bulkIndex() for rows that come from a SQL table. */
+    public function toDocument(object $log, string $source): array
+    {
+        return [
+            'log_id' => $log->id,
+            'source' => $source,
+            'name' => $log->name,
+            'status' => $log->status,
+            'request' => $this->toText($log->request),
+            'response' => $this->toText($log->response),
+            'created_at' => $this->toIso($log->created_at),
+        ];
+    }
+
+    /** Writes a new log straight to Elasticsearch, with no SQL row behind it. */
+    public function indexNew(array $attributes): void
+    {
+        $this->client->index([
+            'index' => $this->indexFor($attributes['created_at'] ?? null),
+            'body' => [
+                'log_id' => null,
+                'source' => 'live',
+                'name' => $attributes['name'],
+                'status' => $attributes['status'],
+                'request' => $this->toText($attributes['request']),
+                'response' => $this->toText($attributes['response']),
+                'created_at' => $this->toIso($attributes['created_at'] ?? now()),
+            ],
+        ]);
+    }
+}
