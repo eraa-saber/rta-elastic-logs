@@ -10,9 +10,9 @@ class CreateLogsIndex extends Command
 
     protected $signature = 'elasticsearch:create-logs-index
                             {--type= : Log type key registered under log_types in config/elasticsearch.php}
-                            {--month= : Month to create, e.g. 2026-09 (defaults to the current month)}';
+                            {--month= : Period to create, matching the rotation: 2026-11-18, 2026-11 or 2026 (defaults to now; ignored for single)}';
 
-    protected $description = 'Register the index template for a log type and create its monthly index';
+    protected $description = 'Register the index template for a log type and create its current index';
 
     public function handle()
     {
@@ -22,6 +22,8 @@ class CreateLogsIndex extends Command
 
         $month = $this->option('month');
         $index = $service->indexFor($month);
+
+        $this->line("Rotation: {$service->rotation()}");
 
         if ($service->createIndexIfMissing($month)) {
             $this->info("Index {$index} created.");

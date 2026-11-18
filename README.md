@@ -1,6 +1,31 @@
 # rta/elastic-logs
 
-Monthly Elasticsearch log indices for Laravel. Each log store is written to one index per month (`{prefix}-YYYY.MM`) and read through the wildcard `{prefix}-*`. An index template gives every new month the right mapping, so a whole month can be dropped by deleting its index.
+Elasticsearch log stores for Laravel, with indices split by day, month, year, or not at all. An index template gives every new index the right mapping, and reads cover every index of a store. A whole period can be dropped by deleting its index.
+
+## Rotation
+
+Set how indices are split in `.env`:
+
+```env
+ELASTIC_LOGS_ROTATION=monthly
+```
+
+| Value | Index name | Use when |
+|---|---|---|
+| `daily` | `external_api_logs-2026.11.18` | Very high volume only. Many small indices weigh on the cluster |
+| `monthly` (default) | `external_api_logs-2026.11` | Most cases |
+| `yearly` | `external_api_logs-2026` | Moderate volume |
+| `single` | `external_api_logs` | Low volume; no period deletes |
+
+To override the rotation for one store, add its entry to `rotations` in `config/elasticsearch.php`:
+
+```php
+'rotations' => [
+    'sms_logs_index' => env('ELASTIC_SMS_LOGS_ROTATION'),   // e.g. single
+],
+```
+
+Changing the rotation is safe. Search, the template and `--older-than` cover both `{prefix}` and `{prefix}-*`, so logs written under the old rotation stay searchable. In Kibana, use the data view pattern `{prefix}*`.
 
 ## Install
 
@@ -76,11 +101,15 @@ try {
 | Command | What it does |
 |---|---|
 | `elastic-logs:install` | Publishes the config and the example service, and adds the `.env` keys |
-| `elasticsearch:create-logs-index --type=X [--month=2026-09]` | Registers the template and creates the month's index |
+| `elasticsearch:create-logs-index --type=X [--month=2026-09]` | Registers the template and creates the current period's index |
 | `elasticsearch:backfill-logs --type=X [--chunk=500]` | Copies rows from the SQL tables in `log_types.X.tables` into Elasticsearch |
-| `elasticsearch:delete-logs-month 2026-07 --type=X` | Deletes one month |
-| `elasticsearch:delete-logs-month --older-than=6 --type=X` | Deletes every month older than N months |
-| `elasticsearch:delete-logs-month --list --type=X` | Lists the existing monthly indices |
+| `elasticsearch:delete-logs-month <period> --type=X` | Deletes one period: `2026-11-18`, `2026-11` or `2026`, depending on the rotation. Refused for `single` |
+| `elasticsearch:delete-logs-month --older-than=6 --type=X` | Deletes every log older than N months. A dated index is dropped only when its whole period is past the cutoff; the `single` index is trimmed by `created_at` |
+| `elasticsearch:delete-logs-month --list --type=X` | Lists the existing indices |
+
+## Upgrading from v1.0
+
+Nothing breaks. `MonthlyLogSearchService` still works and behaves as before with the default `monthly` rotation. New code should extend `Rta\ElasticLogs\LogSearchService`, which uses `indices()`, `deletePeriod()` and `deleteOlderThan()` in place of `monthlyIndices()`, `deleteMonth()` and `deleteMonthsOlderThan()`.
 
 ## Releasing
 

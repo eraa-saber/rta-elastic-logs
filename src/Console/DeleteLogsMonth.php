@@ -9,13 +9,13 @@ class DeleteLogsMonth extends Command
     use ResolvesLogType;
 
     protected $signature = 'elasticsearch:delete-logs-month
-                            {month? : Month to drop, e.g. 2026-07}
+                            {month? : Period to drop, matching the rotation: 2026-11-18, 2026-11 or 2026}
                             {--type= : Log type key registered under log_types in config/elasticsearch.php}
-                            {--older-than= : Instead drop every month older than this many months}
-                            {--list : Only list the existing monthly indices}
+                            {--older-than= : Instead drop every log older than this many months}
+                            {--list : Only list the existing indices}
                             {--force : Skip the confirmation prompt}';
 
-    protected $description = 'Drop logs one whole month at a time by deleting that month\'s Elasticsearch index';
+    protected $description = 'Drop logs one whole period at a time, or every log older than N months';
 
     public function handle()
     {
@@ -24,10 +24,12 @@ class DeleteLogsMonth extends Command
         }
 
         if ($this->option('list')) {
-            $existing = $service->monthlyIndices();
+            $existing = $service->indices();
+
+            $this->line("Rotation: {$service->rotation()}");
 
             if (empty($existing)) {
-                $this->info('No monthly indices found.');
+                $this->info('No indices found.');
                 return self::SUCCESS;
             }
 
@@ -42,12 +44,17 @@ class DeleteLogsMonth extends Command
         $month = $this->argument('month');
 
         if (($olderThan === null) === ($month === null)) {
-            $this->error('Pass either a month argument or --older-than, not both.');
+            $this->error('Pass either a period argument or --older-than, not both.');
             return self::FAILURE;
         }
 
         if ($olderThan !== null) {
             return $this->dropOlderThan((int) $olderThan);
+        }
+
+        if ($service->isSingleIndex()) {
+            $this->error("Rotation is 'single': dropping a period would delete every log. Use --older-than instead.");
+            return self::FAILURE;
         }
 
         $index = $service->indexFor($month);
@@ -56,7 +63,7 @@ class DeleteLogsMonth extends Command
             return self::FAILURE;
         }
 
-        if (! $service->deleteMonth($month)) {
+        if (! $service->deletePeriod($month)) {
             $this->warn("Index {$index} does not exist — nothing to delete.");
             return self::SUCCESS;
         }
@@ -73,22 +80,22 @@ class DeleteLogsMonth extends Command
             return self::FAILURE;
         }
 
-        if (! $this->confirmed("Delete every monthly index older than {$months} month(s)?")) {
+        if (! $this->confirmed("Delete every log older than {$months} month(s)?")) {
             return self::FAILURE;
         }
 
-        $deleted = $this->resolvedService->deleteMonthsOlderThan($months);
+        $removed = $this->resolvedService->deleteOlderThan($months);
 
-        if (empty($deleted)) {
-            $this->info('Nothing older than the cutoff — no index deleted.');
+        if (empty($removed)) {
+            $this->info('Nothing older than the cutoff — nothing deleted.');
             return self::SUCCESS;
         }
 
-        foreach ($deleted as $index) {
-            $this->line("  deleted {$index}");
+        foreach ($removed as $line) {
+            $this->line("  deleted {$line}");
         }
 
-        $this->info(count($deleted) . ' index(es) deleted.');
+        $this->info(count($removed) . ' index(es) affected.');
 
         return self::SUCCESS;
     }

@@ -14,8 +14,18 @@ return [
     'ssl_verify' => env('ELASTIC_SSL_VERIFY', false),
     'ca_cert' => env('ELASTIC_CA_CERT'),
 
-    // Index name prefixes, one per log store. The real indices are one per month:
-    // "{prefix}-YYYY.MM". The key is what a service returns from indexConfigKey().
+    // How each store's indices are split: daily, monthly, yearly or single.
+    //   daily -> "{prefix}-2026.11.18", monthly -> "{prefix}-2026.11",
+    //   yearly -> "{prefix}-2026",      single -> "{prefix}"
+    'rotation' => env('ELASTIC_LOGS_ROTATION', 'monthly'),
+
+    // Optional per-store override, keyed like the prefixes below. Empty = use 'rotation'.
+    'rotations' => [
+        // 'external_api_logs_index' => env('ELASTIC_EXTERNAL_API_LOGS_ROTATION'),
+    ],
+
+    // Index name prefixes, one per log store. The key is what a service returns
+    // from indexConfigKey().
     // 'external_api_logs_index' => env('ELASTIC_EXTERNAL_API_LOGS_INDEX', 'external_api_logs'),
 
     // Log types the console commands accept via --type. "tables" lists the SQL tables

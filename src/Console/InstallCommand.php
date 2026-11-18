@@ -57,6 +57,7 @@ class InstallCommand extends Command
             'ELASTIC_PASSWORD' => '',
             'ELASTIC_SSL_VERIFY' => 'false',
             'ELASTIC_CA_CERT' => '',
+            'ELASTIC_LOGS_ROTATION' => 'monthly',
         ];
 
         $missing = array_filter($keys, fn ($key) => ! preg_match('/^' . $key . '=/m', $env), ARRAY_FILTER_USE_KEY);

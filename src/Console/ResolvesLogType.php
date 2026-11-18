@@ -2,7 +2,7 @@
 
 namespace Rta\ElasticLogs\Console;
 
-use Rta\ElasticLogs\MonthlyLogSearchService;
+use Rta\ElasticLogs\LogSearchService;
 
 /**
  * Shared --type handling: maps a --type key onto the matching search service,
@@ -10,9 +10,9 @@ use Rta\ElasticLogs\MonthlyLogSearchService;
  */
 trait ResolvesLogType
 {
-    protected ?MonthlyLogSearchService $resolvedService = null;
+    protected ?LogSearchService $resolvedService = null;
 
-    protected function resolveService(): ?MonthlyLogSearchService
+    protected function resolveService(): ?LogSearchService
     {
         if (! ($config = $this->logTypeConfig())) {
             return null;

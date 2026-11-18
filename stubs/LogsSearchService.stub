@@ -2,13 +2,13 @@
 
 namespace App\Services\Elasticsearch;
 
-use Rta\ElasticLogs\MonthlyLogSearchService;
+use Rta\ElasticLogs\LogSearchService;
 
 /**
  * Example log store. Rename the class, point indexConfigKey() at a prefix in
  * config/elasticsearch.php, then register it under log_types.
  */
-class ExampleLogsSearchService extends MonthlyLogSearchService
+class ExampleLogsSearchService extends LogSearchService
 {
     protected function indexConfigKey(): string
     {
